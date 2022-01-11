@@ -26,7 +26,7 @@ fn main() {
         if args.rdma == "read_server" {
             test_rserver("10.0.12.24", "data/smallfile.txt");
         } else if args.rdma == "read_client" {
-            test_rclient("10.0.12.24");
+            test_rclient("10.0.12.24:9500");
         }
     }
 }
