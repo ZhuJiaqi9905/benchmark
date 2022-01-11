@@ -19,7 +19,7 @@ pub fn test_rserver(listen_addr: &str, in_path: &str) {
     }
 }
 pub fn test_rclient(dst: &str){
-    let mut rclient = Rclient::connect(dst, 3500000 , 1024);
+    let mut rclient = Rclient::connect(dst, 1073733000 , 1024);
     rclient.read_data(10240);
     rclient.disconnect();
 }

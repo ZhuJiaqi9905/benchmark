@@ -1,9 +1,11 @@
 use std::{
     arch::x86_64::_CMP_EQ_UQ,
     convert::TryInto,
+    fs,
     io::{Read, Write},
     net::TcpStream,
-    rc::Rc, fs,
+    rc::Rc,
+    time::SystemTime,
 };
 
 use libc::rand;
@@ -99,16 +101,18 @@ impl Rclient {
         self.stream.write_all(&0x10_i32.to_le_bytes()).unwrap();
         println!("disconnect");
     }
-    pub fn read_data(&mut self, bench_size: usize) {
+    pub fn read_data(&mut self, batch_size: usize) {
         let mut s = 0;
         let mut wr_id = 0;
         let mut cqe = 1;
         let mut cqe_arr = unsafe { [std::mem::zeroed::<ibv_wc>(); 1] };
         // read data by rdma read
-        for _i in 0..(self.remote_len / bench_size) {
+        let start = SystemTime::now();
+
+        for _i in 0..(self.remote_len / batch_size) {
             if cqe < self.max_cqe {
                 post_read(
-                    &self.recv_buf[s..(s + bench_size)],
+                    &self.recv_buf[s..(s + batch_size)],
                     self.remote_addr + s as u64,
                     self.remote_rkey,
                     &self.qp,
@@ -118,7 +122,7 @@ impl Rclient {
                 );
             } else {
                 post_read(
-                    &self.recv_buf[s..(s + bench_size)],
+                    &self.recv_buf[s..(s + batch_size)],
                     self.remote_addr + s as u64,
                     self.remote_rkey,
                     &self.qp,
@@ -140,7 +144,7 @@ impl Rclient {
             }
             cqe += 1;
             wr_id += 1;
-            s += bench_size;
+            s += batch_size;
         }
         if s < self.remote_len {
             post_read(
@@ -164,8 +168,15 @@ impl Rclient {
                 }
             }
         }
+        let end = SystemTime::now();
+        let duration = (end.duration_since(start).unwrap().as_micros() as f64) / 1e6;
+        let total_size = self.remote_len as f64 / (1024f64 * 1024f64);
+        let throughput = total_size / duration;
+        println!("rdma read throughput: {:.3}MB/s", throughput);
         //write data to the out file
-        let mut out_file = fs::File::open("log/smalldata.log").unwrap();
-        out_file.write_all(&self.recv_buf[0..self.remote_len]).unwrap();
+        let mut out_file = fs::File::create("log/smalldata.log").unwrap();
+        out_file
+            .write_all(&self.recv_buf[0..self.remote_len])
+            .unwrap();
     }
 }
