@@ -106,7 +106,7 @@ impl Rserver {
     pub fn wait_for_disconnect(&mut self) -> Result<bool, std::io::Error>{
         let mut buf = [0u8; 4];
         self.stream.read_exact(&mut buf)?;
-        if u32::from_be_bytes(buf) == 0x10{
+        if u32::from_le_bytes(buf) == 0x10{
             Ok(true)
         }else{
             Ok(false)

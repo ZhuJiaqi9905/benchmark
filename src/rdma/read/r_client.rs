@@ -1,15 +1,16 @@
 use std::{
+    arch::x86_64::_CMP_EQ_UQ,
     convert::TryInto,
     io::{Read, Write},
     net::TcpStream,
-    rc::Rc,
+    rc::Rc, fs,
 };
 
 use libc::rand;
 use rand::Rng;
-use rdma_sys::ibv_access_flags;
+use rdma_sys::{ibv_access_flags, ibv_send_flags, ibv_wc, ibv_wc_opcode, ibv_wc_status};
 
-use crate::rdma::verbs::{IbvContext, IbvCq, IbvMr, IbvPd, IbvQp};
+use crate::rdma::verbs::{post_read, IbvContext, IbvCq, IbvMr, IbvPd, IbvQp};
 
 pub(crate) struct Rclient {
     stream: TcpStream,
@@ -37,14 +38,14 @@ impl Rclient {
         let mut recv_buf = vec![0; buf_size].into_boxed_slice();
         let mr = IbvMr::new(&pd, &mut recv_buf, access_flag).unwrap();
         let cq = IbvCq::new(&context, max_cqe).unwrap();
-        let qp = IbvQp::new(&pd, &cq, &cq, 1, 10, 10, 1, 1, 10).unwrap();
+        let qp = IbvQp::new(&pd, &cq, &cq, 0, max_cqe as u32, max_cqe as u32, 1, 1, 10).unwrap();
         qp.modify_reset2init(1).unwrap();
         let my_qpn = qp.get_qpn();
         let my_psn = rand::thread_rng().gen::<u32>();
         let my_lid = context.get_lid(1).unwrap();
-        stream.write_all(&my_qpn.to_le_bytes());
-        stream.write_all(&my_psn.to_le_bytes());
-        stream.write_all(&my_lid.to_le_bytes());
+        stream.write_all(&my_qpn.to_le_bytes()).unwrap();
+        stream.write_all(&my_psn.to_le_bytes()).unwrap();
+        stream.write_all(&my_lid.to_le_bytes()).unwrap();
         stream.flush().unwrap();
         println!("my_qpn: {}, my_psn: {}, my_lid: {}", my_qpn, my_psn, my_lid);
         let mut buf = [0u8; 1024];
@@ -97,5 +98,74 @@ impl Rclient {
     pub fn disconnect(&mut self) {
         self.stream.write_all(&0x10_i32.to_le_bytes()).unwrap();
         println!("disconnect");
+    }
+    pub fn read_data(&mut self, bench_size: usize) {
+        let mut s = 0;
+        let mut wr_id = 0;
+        let mut cqe = 1;
+        let mut cqe_arr = unsafe { [std::mem::zeroed::<ibv_wc>(); 1] };
+        // read data by rdma read
+        for _i in 0..(self.remote_len / bench_size) {
+            if cqe < self.max_cqe {
+                post_read(
+                    &self.recv_buf[s..(s + bench_size)],
+                    self.remote_addr + s as u64,
+                    self.remote_rkey,
+                    &self.qp,
+                    &self.mr,
+                    wr_id,
+                    0,
+                );
+            } else {
+                post_read(
+                    &self.recv_buf[s..(s + bench_size)],
+                    self.remote_addr + s as u64,
+                    self.remote_rkey,
+                    &self.qp,
+                    &self.mr,
+                    wr_id,
+                    ibv_send_flags::IBV_SEND_SIGNALED.0,
+                );
+                loop {
+                    let res = self.cq.poll(&mut cqe_arr);
+                    if res.len() > 0 {
+                        if res[0].status != ibv_wc_status::IBV_WC_SUCCESS
+                            || res[0].opcode != ibv_wc_opcode::IBV_WC_RDMA_READ
+                        {
+                            panic!("read completion error, status is {}", res[0].status);
+                        }
+                        break;
+                    }
+                }
+            }
+            cqe += 1;
+            wr_id += 1;
+            s += bench_size;
+        }
+        if s < self.remote_len {
+            post_read(
+                &self.recv_buf[s..self.remote_len],
+                self.remote_addr + s as u64,
+                self.remote_rkey,
+                &self.qp,
+                &self.mr,
+                wr_id,
+                ibv_send_flags::IBV_SEND_SIGNALED.0,
+            );
+            loop {
+                let res = self.cq.poll(&mut cqe_arr);
+                if res.len() > 0 {
+                    if res[0].status != ibv_wc_status::IBV_WC_SUCCESS
+                        || res[0].opcode != ibv_wc_opcode::IBV_WC_RDMA_READ
+                    {
+                        panic!("read completion error, status is {}", res[0].status);
+                    }
+                    break;
+                }
+            }
+        }
+        //write data to the out file
+        let mut out_file = fs::File::open("log/smalldata.log").unwrap();
+        out_file.write_all(&self.recv_buf[0..self.remote_len]).unwrap();
     }
 }

@@ -24,7 +24,7 @@ fn main() {
         test_serialize("data/bigfile.log", 1024);
     } else if args.bench == "rdma" {
         if args.rdma == "read_server" {
-            test_rserver("10.0.12.24", "data/smallfile.txt");
+            test_rserver("10.0.12.24:9500", "data/smallfile.txt");
         } else if args.rdma == "read_client" {
             test_rclient("10.0.12.24");
         }
