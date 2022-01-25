@@ -19,10 +19,9 @@ buf_len(B) | throughput(MB/s)
 1024000 | 6119.038
 4096000 | 6109.476
 
-
 * BufReader
 
-buf_len | throughput
+buf_len(B) | throughput(MB/s)
 --------|-----------
 1024 | 3387.283
 2048 | 4313.264
@@ -37,3 +36,21 @@ buf_len | throughput
 
 * 读文件到带宽在6GB/s左右
 * BufReader的性能要优于直接调用File的read。优先使用BufReader读取文件
+
+## write file
+
+把1G的数据顺序写到文件中，每次写buf_len长度的内容
+
+* BufWriter
+
+buf_len(B) | throughput(MB/s)
+------- | ----------
+102400 | 1658.707
+409600 | 1722.568
+1024000 | 1726.061
+4096000 | 1729.674
+
+结论：
+
+* 顺序写的带宽大概在1.5GB/s左右
+- 和读文件，rdma read相比，写文件的确是性能瓶颈
