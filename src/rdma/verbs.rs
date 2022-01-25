@@ -491,9 +491,9 @@ impl IbvCq {
 
     pub fn poll<'a>(&self, cqe_arr: &'a mut [ibv_wc]) -> &'a [ibv_wc] {
         let n = unsafe { ibv_poll_cq(self.p_ibv_cq, cqe_arr.len() as i32, cqe_arr.as_mut_ptr()) };
-        // if n < 0 {
-        //     panic!("ibv_poll_cq() error");
-        // }
+        if n < 0 {
+            panic!("ibv_poll_cq() error");
+        }
         &mut cqe_arr[0..n as usize]
     }
 }

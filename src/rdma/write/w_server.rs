@@ -51,7 +51,7 @@ impl Wserver {
 
         let mr = IbvMr::new(&pd, &mut data_buf, access_flag).unwrap();
         let cq = IbvCq::new(&context, max_cqe).unwrap();
-        let qp = IbvQp::new(&pd, &cq, &cq, 1, 10, 10, 1, 1, 10).unwrap();
+        let qp = IbvQp::new(&pd, &cq, &cq, 1, max_cqe as u32, max_cqe as u32, 1, 1, 10).unwrap();
         qp.modify_reset2init(1).unwrap();
 
         let my_qpn = qp.get_qpn();
@@ -80,6 +80,7 @@ impl Wserver {
         qp.modify_init2rtr(0, 1, remote_qpn, remote_psn, remote_lid)
             .unwrap();
         println!("init2rtr");
+        qp.modify_rtr2rts(my_psn).unwrap();
         // send data_len
         stream.write_all(&(data_buf.len() as u32).to_le_bytes()).unwrap();
         // get remote addr, rkey
@@ -110,7 +111,7 @@ impl Wserver {
     pub fn write_data(&mut self, batch_size: usize) {
         let mut s = 0;
         let mut wr_id = 0;
-        let mut cqe = 1;
+        let mut cqe = 0;
         let mut cqe_arr = Vec::with_capacity(1024);
         for i in 0..1024 {
             let c = unsafe { std::mem::zeroed::<ibv_wc>() };
@@ -118,7 +119,7 @@ impl Wserver {
         }
         // write data by rdma write
         let start = SystemTime::now();
-
+        println!("start write data");
         for _i in 0..(self.data_buf.len() / batch_size) {
             post_write(
                 &self.data_buf[s..(s + batch_size)],
@@ -127,11 +128,12 @@ impl Wserver {
                 &self.qp,
                 &self.mr,
                 wr_id,
-                0,
+                ibv_send_flags::IBV_SEND_SIGNALED.0,
             );
             cqe += 1;
             wr_id += 1;
             s += batch_size;
+            // println!("post write");
             if cqe == self.max_cqe {
                 loop {
                     let res = self.cq.poll(&mut cqe_arr);
@@ -155,17 +157,20 @@ impl Wserver {
             );
             cqe += 1;
         }
+        // println!("cqe num {}", cqe);
         while cqe > 0 {
             let res = self.cq.poll(&mut cqe_arr);
+            // println!("poll num {}", res.len());
             if res.len() > 0 {
                 cqe -= res.len() as i32;
+                
             }
         }
         let end = SystemTime::now();
         let duration = (end.duration_since(start).unwrap().as_micros() as f64) / 1e6;
         let total_size = self.data_buf.len() as f64 / (1024f64 * 1024f64);
         let throughput = total_size / duration;
-        println!("rdma read throughput: {:.3}MB/s", throughput);
+        println!("rdma write throughput: {:.3}MB/s", throughput);
     }
 
     pub fn disconnect(&mut self) {

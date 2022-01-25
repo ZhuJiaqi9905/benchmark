@@ -48,7 +48,7 @@ impl Rserver {
 
         let mr = IbvMr::new(&pd, &mut data_buf, access_flag).unwrap();
         let cq = IbvCq::new(&context, max_cqe).unwrap();
-        let qp = IbvQp::new(&pd, &cq, &cq, 1, 10, 10, 1, 1, 10).unwrap();
+        let qp = IbvQp::new(&pd, &cq, &cq, 1, max_cqe as u32, max_cqe as u32, 1, 1, 10).unwrap();
         qp.modify_reset2init(1).unwrap();
 
         let my_qpn = qp.get_qpn();
@@ -77,6 +77,7 @@ impl Rserver {
         qp.modify_init2rtr(0, 1, remote_qpn, remote_psn, remote_lid)
             .unwrap();
         println!("init2rtr");
+        qp.modify_rtr2rts(my_psn).unwrap();
         //send addr, len, rkey
         stream
             .write_all(&(data_buf.as_ptr() as u64).to_le_bytes())
