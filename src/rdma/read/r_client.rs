@@ -164,7 +164,7 @@ impl Rclient {
         let throughput = total_size / duration;
         println!("rdma read throughput: {:.3}MB/s", throughput);
         //write data to the out file
-        let mut out_file = fs::File::create("log/smalldata.log").unwrap();
+        let mut out_file = fs::File::create("log/rdma_read.log").unwrap();
         out_file
             .write_all(&self.recv_buf[0..self.remote_len])
             .unwrap();
