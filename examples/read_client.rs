@@ -13,7 +13,7 @@ struct Args {
     ib_port: u8,
     #[clap(long, short, default_value = "mlx5_1")]
     dev: String,
-    #[clap(long, short = 's',default_value_t = 1024)]
+    #[clap(long, short = 's', default_value_t = 1024)]
     buf_size: usize,
     #[clap(long, short, default_value_t = 512)]
     message_size: usize,
@@ -115,7 +115,9 @@ fn rdma_read(
         }
     }
     let end = SystemTime::now();
-    let duration = (end.duration_since(start).unwrap().as_micros() as f64) / 1e6;
+    let duration = end.duration_since(start).unwrap().as_micros();
+    println!("duration {}us", duration);
+    let duration = (duration as f64) / 1e6;
     let total_size = (8 * num * msg_len) as f64 / (1024f64 * 1024f64 * 1024f64);
     let throughput = total_size / duration;
     println!("rdma read throughput: {:.3}Gbps", throughput);

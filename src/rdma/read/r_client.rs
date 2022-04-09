@@ -164,7 +164,9 @@ impl Rclient {
             }
         }
         let end = SystemTime::now();
-        let duration = (end.duration_since(start).unwrap().as_micros() as f64) / 1e6;
+        let duration = end.duration_since(start).unwrap().as_micros();
+        println!("duration {}us", duration);
+        let duration = ( duration as f64) / 1e6;
         let total_size = self.remote_len as f64 / (1024f64 * 1024f64);
         let throughput = total_size / duration;
         println!("rdma read throughput: {:.3}MB/s", throughput);
