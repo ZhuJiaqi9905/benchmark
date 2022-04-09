@@ -36,9 +36,16 @@ impl Rserver {
     pub fn new(mut stream: TcpStream, in_path: &str, max_cqe: i32) -> Self {
         // read all the data to data buf
         let mut file = BufReader::new(File::open(in_path).expect("Unable to open input file"));
-        let mut data_buf =  Vec::new();
-        file.read_to_end(&mut data_buf).unwrap();
-        let mut data_buf = data_buf.into_boxed_slice();
+        // let mut data_buf =  Vec::new();
+        // file.read_to_end(&mut data_buf).unwrap();
+        // let mut data_buf = data_buf.into_boxed_slice();
+        let buf_size = 1024*1024*20; 
+        let ptr = unsafe {libc::malloc(buf_size) as *mut u8};
+        if ptr == std::ptr::null_mut(){
+            panic!("malloc fail");
+        }
+        let mut data_buf = unsafe {Vec::from_raw_parts(ptr, buf_size, buf_size).into_boxed_slice()};
+        // let mut data_buf = Box::new(vec![0_u8; 1024*1024*20]).into_boxed_slice();
         // init rdma connection
         let access_flag = ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
             | ibv_access_flags::IBV_ACCESS_REMOTE_READ

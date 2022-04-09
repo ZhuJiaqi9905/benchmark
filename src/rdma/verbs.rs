@@ -789,6 +789,33 @@ pub fn post_write(
         panic!("post_write() error");
     }
 }
+pub fn post_write_raw(
+    addr: u64,
+    remote_addr: u64,
+    length: u32,
+    rkey: u32,
+    lkey: u32,
+    qp: &IbvQp,
+    wr_id: u64,
+    send_flags: u32,
+) {
+    let mut bad_wr = std::ptr::null_mut::<ibv_send_wr>();
+    let mut sge = ibv_sge {
+        addr: addr,
+        length: length,
+        lkey: lkey,
+    };
+    let mut wr = unsafe { std::mem::zeroed::<ibv_send_wr>() };
+    wr.wr_id = wr_id;
+    wr.next = std::ptr::null_mut::<ibv_send_wr>() as *mut _;
+    wr.sg_list = &mut sge as *mut _;
+    wr.num_sge = 1;
+    wr.opcode = ibv_wr_opcode::IBV_WR_RDMA_WRITE;
+    wr.wr.rdma.remote_addr = remote_addr;
+    wr.wr.rdma.rkey = rkey;
+    wr.send_flags = send_flags;
+    let _res = unsafe { ibv_post_send(qp.p_ibv_qp, &mut wr as *mut _, &mut bad_wr as *mut _) };
+}
 
 fn post_read_or_write(
     buffer: &[u8],

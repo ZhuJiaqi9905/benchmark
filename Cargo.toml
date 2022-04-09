@@ -14,3 +14,4 @@ bytes = { version = "1", features = ["serde"] }
 rdma-sys = { git = "https://github.com/datenlord/rdma-sys" }
 libc = "0.2"
 rand = "0.8.3"
+rdma-rs = {git = "https://github.com/ZhuJiaqi9905/rdma-rs"}

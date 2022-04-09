@@ -32,7 +32,12 @@ impl Rclient {
         let access_flag = ibv_access_flags::IBV_ACCESS_LOCAL_WRITE
             | ibv_access_flags::IBV_ACCESS_REMOTE_READ
             | ibv_access_flags::IBV_ACCESS_REMOTE_WRITE;
-        let mut recv_buf = vec![0; buf_size].into_boxed_slice();
+        // let mut recv_buf = vec![0; buf_size].into_boxed_slice();
+        let ptr = unsafe {libc::malloc(buf_size) as *mut u8};
+        if ptr == std::ptr::null_mut(){
+            panic!("malloc fail");
+        }
+        let mut recv_buf = unsafe {Vec::from_raw_parts(ptr, buf_size, buf_size).into_boxed_slice()};
         let mr = IbvMr::new(&pd, &mut recv_buf, access_flag).unwrap();
         let cq = IbvCq::new(&context, max_cqe).unwrap();
         let qp = IbvQp::new(&pd, &cq, &cq, 1, max_cqe as u32, max_cqe as u32, 1, 1, 10).unwrap();
@@ -163,10 +168,11 @@ impl Rclient {
         let total_size = self.remote_len as f64 / (1024f64 * 1024f64);
         let throughput = total_size / duration;
         println!("rdma read throughput: {:.3}MB/s", throughput);
+        // std::mem::forget(self.recv_buf);
         //write data to the out file
-        let mut out_file = fs::File::create("log/rdma_read.log").unwrap();
-        out_file
-            .write_all(&self.recv_buf[0..self.remote_len])
-            .unwrap();
+        // let mut out_file = fs::File::create("log/rdma_read.log").unwrap();
+        // out_file
+        //     .write_all(&self.recv_buf[0..self.remote_len])
+        //     .unwrap();
     }
 }

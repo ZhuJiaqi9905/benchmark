@@ -9,7 +9,7 @@ use std::{
 use rand::Rng;
 use rdma_sys::{ibv_access_flags, ibv_send_flags, ibv_wc, ibv_wc_opcode, ibv_wc_status};
 
-use crate::rdma::verbs::{post_write, IbvContext, IbvCq, IbvMr, IbvPd, IbvQp};
+use crate::rdma::verbs::{post_write, post_write_raw, IbvContext, IbvCq, IbvMr, IbvPd, IbvQp};
 
 // one-to-one client/server
 pub(crate) struct Wserver {
@@ -82,7 +82,9 @@ impl Wserver {
         println!("init2rtr");
         qp.modify_rtr2rts(my_psn).unwrap();
         // send data_len
-        stream.write_all(&(data_buf.len() as u32).to_le_bytes()).unwrap();
+        stream
+            .write_all(&(data_buf.len() as u32).to_le_bytes())
+            .unwrap();
         // get remote addr, rkey
         data_size = 12;
         meta_data.clear();
@@ -163,7 +165,6 @@ impl Wserver {
             // println!("poll num {}", res.len());
             if res.len() > 0 {
                 cqe -= res.len() as i32;
-                
             }
         }
         let end = SystemTime::now();

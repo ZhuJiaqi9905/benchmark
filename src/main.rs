@@ -1,13 +1,18 @@
 #![allow(dead_code, unused_imports)]
 use crate::disk::file_rw::read_throughput;
 use clap::Parser;
+use clap::Subcommand;
 use disk::file_rw::{bufread_throughput, bufwrite_throughput};
-use rdma::{read::{test_rclient, test_rserver}, write::{test_wserver, test_wclient}};
+use rdma::{
+    read::{test_rclient, test_rserver},
+    write::{test_wclient, test_wserver},
+};
 use serial::serialize::test_serialize;
 mod disk;
 mod net;
 mod rdma;
 mod serial;
+pub mod connection;
 #[derive(Parser, Debug)]
 #[clap(about, version, author)]
 struct Args {
@@ -18,7 +23,7 @@ struct Args {
     #[clap(long, default_value = "")]
     disk: String,
 }
-
+    
 fn main() {
     let args = Args::parse();
     if args.bench == "disk" {
@@ -32,14 +37,13 @@ fn main() {
         test_serialize("data/bigfile.log", 1024);
     } else if args.bench == "rdma" {
         if args.rdma == "read_server" {
-            test_rserver("10.0.12.24:9500", "data/bigfile.log");
+            test_rserver("127.0.0.1:9500", "data/bigfile.log");
         } else if args.rdma == "read_client" {
-            test_rclient("10.0.12.24:9500");
-        }else if args.rdma == "write_server"{
+            test_rclient("127.0.0.1:9500");
+        } else if args.rdma == "write_server" {
             test_wserver("10.0.12.24:9500", "data/bigfile.log");
-        }else if args.rdma == "write_client"{
+        } else if args.rdma == "write_client" {
             test_wclient("10.0.12.24:9500");
         }
-
     }
 }

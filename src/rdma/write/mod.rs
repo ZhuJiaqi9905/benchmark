@@ -7,7 +7,7 @@ pub fn test_wserver(listen_addr: &str, in_path: &str) {
     let stream = Wserver::listen_one(listen_addr);
 
     let mut wserver = Wserver::new(stream, in_path, 1024);
-    wserver.write_data(1024*64);
+    wserver.write_data(1024*1024);
     wserver.disconnect();
     
 }

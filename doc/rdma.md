@@ -18,3 +18,11 @@ batch_size(B) | throughput(MB/s)
 10240000 | 6363.948
 
 可以看到RDMA read带宽就是6GB/s左右了，而且这种read是远端准备好自己的数据，然后本地直接read数据，才能达到这样的吞吐量。如果每次仅读取小数据，是无法跑满带宽的。
+
+```
+dl24
+cargo run --release -- --bench rdma --rdma read_server
+
+dl25
+cargo run --release -- --bench rdma --rdma read_client
+```
